@@ -1,0 +1,110 @@
+##Calling all required packages
+library(boot) 
+library(car)
+library(QuantPsyc)
+library(lmtest)
+library(sandwich)
+library(vars)
+library(nortest)
+library(MASS)
+
+
+##Setting read directory
+setwd("C:\\Users\\James\\Desktop\\Business Analytics\\R\\Project")
+
+
+##Importing csv file from read directory set above
+data <- read.csv("Fn-UseC_-Marketing-Customer-Value-Analysis.csv")
+
+
+##Checking the data imported
+str(data)
+summary(data) 
+head(data)
+
+
+## Check the missing value (if any)
+sapply(data, function(x) sum(is.na(x)))
+
+
+##Renaming the dep var column
+names(data)[names(data) == "Customer.Lifetime.Value"] <- "clv"
+
+
+##Dividing the data
+set.seed(123)
+Development <- sample(1:nrow(data), nrow(data)/2)
+Validation <- -Development
+Developing <- data[Development,]
+Validating <- data[Validation,]
+
+
+##Graphical representation
+boxplot(data$clv)
+
+
+## Checking for outliers
+quantile(data$clv, c(0,0.05,0.1,0.25,0.5,0.75,0.85,0.90,0.95,0.99,0.995,1))
+
+
+##Removing outliers
+d <- data[data$clv<14400,]
+nrow(d)
+boxplot(d$clv)
+
+
+head(d)
+names(d)
+
+
+##Final Model
+model <- lm(clv ~ Coverage + I(Education == "College") + I(Education == "High School or Below") + I(Effective.To.Date == "1/14/11") + I(Effective.To.Date == "1/22/11") + I(Effective.To.Date == "1/27/11") + I(Effective.To.Date == "1/29/11") + I(Effective.To.Date == "2/25/11") + I(EmploymentStatus == "Unemployed") + Income + Monthly.Premium.Auto + Number.of.Open.Complaints + Number.of.Policies + Renew.Offer.Type + I(Vehicle.Class == "Sports Car") + I(Vehicle.Class == "SUV") , data=d)
+summary(model)
+
+
+## MAPE
+d$pred <- fitted(model)
+
+
+#Calculating MAPE
+attach(d)
+(sum((abs(clv-pred))/clv))/nrow(d)
+
+
+#Check Vif
+vif(model)
+
+############################Tests################################
+
+##Linearity-Test
+durbinWatsonTest(model)
+dwt(model)
+
+
+##Heteroscedasticity
+#Breusch-Pagan test
+bptest(model)  
+
+
+## Normality testing of null hypothesis.
+#Anderson-Darling test for normality
+resids <- model$residuals
+ad.test(resids) 
+
+#Cramer-von Mises test for normaility
+cvm.test(resids)  
+
+#Lilliefors (Kolmogorov-Smirnov) test for normality
+lillie.test(resids)  
+
+#Pearson chi-square test for normaility
+pearson.test(resids) 
+
+#Shapiro-Francia test for normaility
+sf.test(resids) 
+
+
+
+
+##Plot of residuals
+qqnorm(resids)
